@@ -2,5 +2,9 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+*.key
 .DS_Store
-
+# Los informes contienen los datos exportados y se conservan solo en el equipo.
+/reportes/
