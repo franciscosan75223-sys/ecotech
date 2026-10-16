@@ -1,5 +1,6 @@
 """Ejemplo con datos ficticios. Crea archivos en tu PC sin usar Supabase."""
-from main import Empleado, Proyecto, Departamento, Asignacion, Informes
+from dominio import Empleado, Proyecto, Departamento, Asignacion
+from main import Informes
 
 
 def crear_informe_ejemplo():

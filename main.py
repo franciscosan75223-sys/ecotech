@@ -1,27 +1,30 @@
 # EcoTech: organización del avance del equipo, adaptada a Supabase.
 # Orden: validaciones, clases, acceso a datos, entrada de datos, menú y main.
 # Los comentarios CAMBIO SUPABASE explican la adaptación de MySQL a PostgreSQL.
-
-from abc import ABC, abstractmethod
+# EcoTech: organizacion del avance del equipo, adaptada a Supabase.
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
 from getpass import getpass
 from pathlib import Path
 import json
 import os
-
-# CAMBIO SUPABASE: PostgreSQL se conecta con psycopg, manteniendo las consultas SQL.
 import psycopg
 from psycopg import Error
 from psycopg.rows import dict_row
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet, InvalidToken
 
+# Importaciones de la capa de dominio
+from dominio import Empleado, CuentaUsuario, Proyecto, Departamento, Asignacion, Tiempo
+from dominio.validaciones import (
+    validar_fecha, validar_horas_adicionales, validar_nombre_usuario, 
+    validar_contrasena, validar_id, validar_rol
+)
 
-# CAMBIO SUPABASE: la configuración local se lee de .env, que no se sube a GitHub.
 load_dotenv(Path(__file__).with_name('.env'))
 SUPABASE_PUERTO = 5432
 SUPABASE_BASE = 'postgres'
+
+# A partir de aqui comienza la clase Informes y ServicioCifrado...
 
 
 def validar_nombre(nombre, revisar_formato=False):
