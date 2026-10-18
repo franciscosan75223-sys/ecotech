@@ -26,6 +26,10 @@ class CuentaUsuario:
         return self.__contrasena_cifrada
 
     def cargar_contrasena_cifrada(self, token):
+        if not isinstance(token, (bytes, bytearray, memoryview)):
+            raise TypeError("La contrasena cifrada debe recibirse como bytes.")
+        if len(token) == 0:
+            raise ValueError("La contrasena cifrada no puede estar vacia.")
         self.__contrasena_cifrada = bytes(token)
 
     def acceso_cuenta(self, nombre, contrasena):
@@ -36,4 +40,4 @@ class CuentaUsuario:
         )
 
     def __str__(self):
-        return f"Usuario: {self._nombre} | Correo: {self._correo}"
+        return "Usuario: {} | Correo: {}".format(self._nombre, self._correo)

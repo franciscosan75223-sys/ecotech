@@ -7,7 +7,7 @@ from dominio.validaciones import (
 class Asignacion:
     def __init__(self, id_asignacion, fecha, horas_trabajadas, tareas_realizadas,
                  id_empleado=None, id_proyecto=None):
-        self._id_asignacion = id_asignacion
+        self._id_asignacion = validar_id(id_asignacion) if id_asignacion is not None else None
         self._fecha = validar_fecha(fecha)
         self.__horas_trabajadas = validar_horas(horas_trabajadas)
         self._tareas_realizadas = validar_descripcion(tareas_realizadas)
@@ -49,9 +49,11 @@ class Asignacion:
         empleado = self._id_empleado if self._id_empleado is not None else "sin vincular"
         proyecto = self._id_proyecto if self._id_proyecto is not None else "sin vincular"
         return (
-            f"Asignacion {self._id_asignacion} | Fecha: {self._fecha} | "
-            f"Empleado: {empleado} | Proyecto: {proyecto} | "
-            f"Horas: {self.__horas_trabajadas} | Tareas: {self._tareas_realizadas}"
+            "Asignacion {} | Fecha: {} | Empleado: {} | Proyecto: {} | "
+            "Horas: {} | Tareas: {}"
+        ).format(
+            self._id_asignacion, self._fecha, empleado, proyecto,
+            self.__horas_trabajadas, self._tareas_realizadas
         )
 
     def __str__(self):

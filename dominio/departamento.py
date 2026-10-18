@@ -3,7 +3,7 @@ from dominio.validaciones import validar_nombre_entidad, validar_id, validar_dep
 
 class Departamento:
     def __init__(self, id_departamento, nombre, gerente_id, departamento):
-        self._id_departamento = id_departamento
+        self._id_departamento = validar_id(id_departamento) if id_departamento is not None else None
         self._nombre = validar_nombre_entidad(nombre)
         self._gerente_id = validar_id(gerente_id)
         self._departamento = validar_departamento(departamento)
@@ -29,8 +29,10 @@ class Departamento:
 
     def mostrar_datos(self):
         return (
-            f"Departamento {self._id_departamento} | {self._nombre} | "
-            f"Descripcion: {self._departamento} | ID del gerente: {self._gerente_id}"
+            "Departamento {} | {} | Descripcion: {} | ID del gerente: {}"
+        ).format(
+            self._id_departamento, self._nombre,
+            self._departamento, self._gerente_id
         )
 
     def __str__(self):

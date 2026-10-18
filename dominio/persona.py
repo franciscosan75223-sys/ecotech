@@ -30,7 +30,7 @@ class Persona(ABC):
 
     @abstractmethod
     def mostrar_datos(self):
-        pass
+        raise NotImplementedError("La clase hija debe implementar mostrar_datos.")
 
     def __str__(self):
         return self.mostrar_datos()

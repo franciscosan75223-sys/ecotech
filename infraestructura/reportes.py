@@ -86,7 +86,7 @@ class Informes:
         carpeta = Path(carpeta).resolve()
         carpeta.mkdir(parents=True, exist_ok=True)
         momento = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
-        return carpeta / f"informe_ecotech_{momento}.{extension}"
+        return carpeta / 'informe_ecotech_{}.{}'.format(momento, extension)
 
     def exportar_excel(self, carpeta=None):
         from openpyxl import Workbook
@@ -164,24 +164,24 @@ class Informes:
             if not filas:
                 contenido.append(Paragraph("Sin registros", estilos["BodyText"]))
             for numero_fila, fila in enumerate(filas, start=1):
-                contenido.append(Paragraph(f"Registro {numero_fila}", estilos["Heading2"]))
+                contenido.append(Paragraph('Registro {}'.format(numero_fila), estilos["Heading2"]))
                 for encabezado, valor in zip(encabezados, fila):
                     if valor is None:
                         valor = "Sin vincular"
                     texto = escape(str(valor)).replace("\n", "<br/>")
-                    contenido.append(Paragraph(f"<b>{escape(encabezado)}:</b> {texto}", estilos["BodyText"]))
+                    contenido.append(Paragraph('<b>{}:</b> {}'.format(escape(encabezado), texto), estilos["BodyText"]))
                 contenido.append(Spacer(1, 10))
             if nombre == "Tiempo":
                 columna_horas = encabezados.index("Horas")
                 total = sum(fila[columna_horas] for fila in filas)
-                contenido.append(Paragraph(f"Total de horas: {total}", estilos["Heading2"]))
+                contenido.append(Paragraph('Total de horas: {}'.format(total), estilos["Heading2"]))
 
         documento = SimpleDocTemplate(str(ruta), pagesize=A4, title="Informe EcoTech",
                                       leftMargin=42, rightMargin=42, topMargin=42, bottomMargin=42)
         def poner_numero_pagina(lienzo, documento):
             lienzo.saveState()
             lienzo.setFont("Helvetica", 9)
-            lienzo.drawRightString(A4[0] - 42, 24, f"Pagina {documento.page}")
+            lienzo.drawRightString(A4[0] - 42, 24, 'Pagina {}'.format(documento.page))
             lienzo.restoreState()
 
         documento.build(contenido, onFirstPage=poner_numero_pagina, onLaterPages=poner_numero_pagina)

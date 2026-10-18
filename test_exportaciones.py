@@ -4,26 +4,27 @@ import unittest
 import io
 from contextlib import redirect_stdout
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import patch
 
 from openpyxl import load_workbook
 from pypdf import PdfReader
-import main as app
+from dominio import Empleado, Proyecto, Departamento, Asignacion, Tiempo
+from infraestructura.reportes import Informes
+from presentacion import menu as ui
 
 
 def informe_de_prueba(cantidad=2):
-    empleado = app.Empleado(1, 'José Muñoz', 'Calle de ejemplo 123', '912345678',
+    empleado = Empleado(1, 'José Muñoz', 'Calle de ejemplo 123', '912345678',
                             'jose@example.com', '2026-01-01', 1250, 'Gerente')
-    proyecto = app.Proyecto(2, 'Energía limpia', 'Investigación & desarrollo',
+    proyecto = Proyecto(2, 'Energía limpia', 'Investigación & desarrollo',
                             '2026-01-01', 'Equipo de prueba', 2000)
-    departamento = app.Departamento(3, 'Desarrollo', 1, 'Sostenibilidad')
+    departamento = Departamento(3, 'Desarrollo', 1, 'Sostenibilidad')
     registros = []
     for numero in range(cantidad):
         horas = 8 if numero == 0 else 3
-        tarea = f'Tarea {numero + 1}: revisión de energía & equipos <nuevos>. Segunda parte.'
-        registros.append(app.Asignacion(numero + 1, '2026-01-10', horas, tarea, 1, 2))
-    return app.Informes([empleado], [proyecto], [departamento], registros)
+        tarea = 'Tarea {}: revisión de energía & equipos <nuevos>. Segunda parte.'.format(numero + 1)
+        registros.append(Asignacion(numero + 1, '2026-01-10', horas, tarea, 1, 2))
+    return Informes([empleado], [proyecto], [departamento], registros)
 
 
 class PruebasExportaciones(unittest.TestCase):
@@ -54,7 +55,7 @@ class PruebasExportaciones(unittest.TestCase):
 
     def test_excel_guarda_texto_sin_ejecutar_formulas(self):
         informe = informe_de_prueba(1)
-        informe.registro_de_tiempo = [app.Asignacion(1, '2026-01-10', 8, '=SUM(1,1)', 1, 2)]
+        informe.registro_de_tiempo = [Asignacion(1, '2026-01-10', 8, '=SUM(1,1)', 1, 2)]
         ruta = informe.exportar_excel(self.carpeta.name)
         libro = load_workbook(ruta)
         self.addCleanup(libro.close)
@@ -78,7 +79,7 @@ class PruebasExportaciones(unittest.TestCase):
         self.assertIn('Total de horas: 185', paginas[-1].extract_text())
 
     def test_informe_vacio_y_nombres_distintos(self):
-        informe = app.Informes([], [], [], [])
+        informe = Informes([], [], [], [])
         pdf1 = informe.exportar_pdf(self.carpeta.name)
         pdf2 = informe.exportar_pdf(self.carpeta.name)
         self.assertNotEqual(pdf1, pdf2)
@@ -90,8 +91,8 @@ class PruebasExportaciones(unittest.TestCase):
         self.assertEqual(libro['Tiempo']['B4'].value, 0)
 
     def test_ejemplo_original_de_un_solo_tiempo(self):
-        tiempo = app.Tiempo('2026-01-10', 8, 'Tarea de ejemplo\nOtra línea', 'Juan Pérez', 'Proyecto A', False)
-        informe = app.Informes(tiempo.empleado, tiempo.proyecto, 'Desarrollo', tiempo)
+        tiempo = Tiempo('2026-01-10', 8, 'Tarea de ejemplo\nOtra línea', 'Juan Pérez', 'Proyecto A', False)
+        informe = Informes(tiempo.empleado, tiempo.proyecto, 'Desarrollo', tiempo)
         libro = load_workbook(informe.exportar_excel(self.carpeta.name))
         self.addCleanup(libro.close)
         self.assertEqual(libro['Tiempo']['B2'].value, 'Juan Pérez')
@@ -103,14 +104,14 @@ class PruebasExportaciones(unittest.TestCase):
     def test_menu_llama_a_las_dos_exportaciones(self):
         with patch('builtins.input', side_effect=['16', '17', '0']), \
              patch('builtins.print'), \
-             patch.object(app, 'exportar_informe_desde_supabase') as exportar:
-            app.menu(None, None)
+             patch.object(ui, 'exportar_informe_desde_supabase') as exportar:
+            ui.menu(None, None)
         self.assertEqual([c.args for c in exportar.call_args_list], [(None, 'excel'), (None, 'pdf')])
 
     def test_error_al_guardar_permite_seguir_en_menu(self):
         with patch('builtins.input', side_effect=['16', '0']), patch('builtins.print') as imprimir, \
-             patch.object(app, 'exportar_informe_desde_supabase', side_effect=PermissionError):
-            app.menu(None, None)
+             patch.object(ui, 'exportar_informe_desde_supabase', side_effect=PermissionError):
+            ui.menu(None, None)
         self.assertTrue(any('No se pudo guardar' in str(c) for c in imprimir.call_args_list))
 
 

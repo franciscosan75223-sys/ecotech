@@ -1,4 +1,5 @@
 import psycopg
+from psycopg.sql import SQL, Identifier
 
 SUPABASE_PUERTO = 5432
 SUPABASE_BASE = 'postgres'
@@ -13,13 +14,31 @@ CONFIGURACION_ENTIDADES = {
 }
 
 def conectar_supabase(usuario, contrasena, host, puerto=SUPABASE_PUERTO, base=SUPABASE_BASE):
-    if not host or not usuario or not contrasena:
-        raise ValueError("Complete el servidor, usuario y contrasena de la base de Supabase.")
-    return psycopg.connect(
-        host=host, port=puerto, user=usuario, password=contrasena, dbname=base,
-        sslmode="require", autocommit=True, connect_timeout=10,
-        options="-c search_path=ecotech,pg_catalog", prepare_threshold=None
-    )
+    if not host or not usuario or not contrasena or not base:
+        raise ValueError("Complete el servidor, usuario, contrasena y base de Supabase.")
+    try:
+        puerto = int(str(puerto))
+    except ValueError as error:
+        raise ValueError("El puerto debe ser un numero entero.") from error
+    if not 1 <= puerto <= 65535:
+        raise ValueError("El puerto debe estar entre 1 y 65535.")
+    try:
+        return psycopg.connect(
+            host=host, port=puerto, user=usuario, password=contrasena, dbname=base,
+            sslmode="require", autocommit=True, connect_timeout=10,
+            options="-c search_path=ecotech,pg_catalog", prepare_threshold=None
+        )
+    except psycopg.errors.InvalidCatalogName as error:
+        raise ValueError("La base de datos indicada no existe.") from error
+    except (psycopg.OperationalError, psycopg.InterfaceError) as error:
+        estado = error.sqlstate
+        if estado and estado.startswith("28"):
+            raise PermissionError("El usuario o la contrasena de Supabase son incorrectos.") from error
+        if estado == "3D000":
+            raise ValueError("La base de datos indicada no existe.") from error
+        raise ConnectionError(
+            "No se pudo conectar con Supabase. Revise el servidor, puerto, credenciales, red y disponibilidad del servicio."
+        ) from error
 
 def verificar_tablas(conexion):
     cursor = conexion.cursor()
@@ -32,8 +51,9 @@ def verificar_tablas(conexion):
         cursor.fetchall()
         for entidad in CONFIGURACION_ENTIDADES:
             tabla, campo_id, campos = CONFIGURACION_ENTIDADES[entidad]
-            columnas = ", ".join((campo_id,) + campos)
-            cursor.execute(f"SELECT {columnas} FROM {tabla} LIMIT 0")
+            columnas = SQL(", ").join(Identifier(campo) for campo in (campo_id,) + campos)
+            consulta = SQL("SELECT {} FROM {} LIMIT 0").format(columnas, Identifier(tabla))
+            cursor.execute(consulta)
             cursor.fetchall()
     finally:
         cursor.close()
@@ -43,23 +63,10 @@ def configuracion_entidad(entidad):
         raise ValueError("La entidad solicitada no esta permitida.")
     return CONFIGURACION_ENTIDADES[entidad]
 
-def mostrar_error_supabase(error):
+def es_error_conexion(error, conexion=None):
     estado = error.sqlstate
-    if estado == "23505":
-        print("Ese usuario ya existe o el empleado ya tiene una cuenta.")
-    elif estado == "23503":
-        print("Revise los registros relacionados: el ID no existe o el registro todavia esta en uso.")
-    elif estado in ("23514", "23502", "22001", "22003", "22007"):
-        print("Un dato no cumple las restricciones de la base. Revise los valores ingresados.")
-    elif estado in ("40P01", "40001", "55P03"):
-        print("Otro cambio esta utilizando esos registros. Intente nuevamente.")
-    elif estado in ("42P01", "42703", "3F000"):
-        print("Falta el esquema de EcoTech. Ejecute ecotech_supabase.sql en el proyecto correcto.")
-    elif estado == "42501":
-        print("El usuario de la base no tiene permiso para realizar esta operacion.")
-    elif estado and estado.startswith("28"):
-        print("El usuario o la contrasena de la base son incorrectos.")
-    elif estado and estado.startswith("08"):
-        print("No se pudo mantener la conexion. Revise el servidor y la red.")
-    else:
-        print("No se completo la operacion en Supabase. Codigo:", estado or "conexion/configuracion")
+    if conexion is not None and (conexion.closed or conexion.broken):
+        return True
+    if estado and (estado.startswith("08") or estado in ("57P01", "57P02", "57P03")):
+        return True
+    return isinstance(error, psycopg.OperationalError) and estado is None
