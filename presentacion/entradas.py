@@ -1,4 +1,4 @@
-from getpass import getpass
+import msvcrt
 import os
 from dominio import (
     Empleado,
@@ -37,6 +37,38 @@ from infraestructura.conexion import (
     SUPABASE_BASE
 )
 
+def pedir_contrasena(mensaje):
+    print(mensaje, end="", flush=True)
+    caracteres = []
+
+    while True:
+        tecla = msvcrt.getwch()
+
+        if tecla in ("\r", "\n"):
+            print()
+            return "".join(caracteres)
+
+        if tecla == "\b":
+            if caracteres:
+                caracteres.pop()
+                print("\b \b", end="", flush=True)
+
+        elif tecla == "\x03":
+            print()
+            raise KeyboardInterrupt
+
+        elif tecla == "\x1a":
+            print()
+            raise EOFError
+
+        elif tecla in ("\x00", "\xe0"):
+            # Descarta el segundo código de las teclas especiales.
+            msvcrt.getwch()
+
+        elif tecla.isprintable():
+            caracteres.append(tecla)
+            print("*", end="", flush=True)
+
 
 def pedir_id(mensaje):
     return pedir_dato(mensaje, validar_id)
@@ -45,7 +77,7 @@ def pedir_dato(mensaje, validacion, ocultar=False, revisar_formato=False):
     while True:
         try:
             if ocultar:
-                entrada = getpass(mensaje)
+                entrada = pedir_contrasena(mensaje)
             else:
                 entrada = input(mensaje).strip()
             if revisar_formato:
@@ -151,5 +183,5 @@ def pedir_configuracion_conexion():
     base = os.getenv("SUPABASE_DB_NAME", SUPABASE_BASE)
     contrasena = os.getenv("SUPABASE_DB_PASSWORD")
     if not contrasena:
-        contrasena = getpass("Contrasena de la base de Supabase: ")
+        contrasena = pedir_contrasena("Contraseña de la base de Supabase: ")
     return usuario, contrasena, host, puerto, base
