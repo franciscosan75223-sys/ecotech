@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dominio.validaciones import validar_nombre, validar_direccion, validar_telefono, validar_correo
+from validaciones import validar_nombre, validar_direccion, validar_telefono, validar_correo
 
 
 class Persona(ABC):

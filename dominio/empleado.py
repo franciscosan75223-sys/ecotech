@@ -1,13 +1,13 @@
 from dominio.persona import Persona
-from dominio.cuenta import CuentaUsuario
-from dominio.validaciones import validar_fecha, validar_salario, validar_rol, validar_id
+from dominio.cuentaUsuario import CuentaUsuario
+from validaciones import validar_fecha, validar_salario, validar_rol, validar_id_opcional
 
 
 class Empleado(Persona):
     def __init__(self, id_empleado, nombre, direccion, telefono,
                  correo, fecha_inicio, salario, rol="Empleado"):
         super().__init__(nombre, direccion, telefono, correo)
-        self._id_empleado = validar_id(id_empleado) if id_empleado is not None else None
+        self._id_empleado = validar_id_opcional(id_empleado)
         self._fecha_inicio = validar_fecha(fecha_inicio)
         self.set_salario(salario)
         self._rol = validar_rol(rol)

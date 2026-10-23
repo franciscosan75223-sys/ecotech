@@ -143,6 +143,12 @@ def validar_id(numero):
     return numero
 
 
+def validar_id_opcional(numero):
+    if numero is None:
+        return None
+    return validar_id(numero)
+
+
 def validar_horas(horas):
     try:
         horas = int(str(horas))

@@ -1,8 +1,12 @@
+import os
+from pathlib import Path
+
 import psycopg
 from psycopg.sql import SQL, Identifier
 
 SUPABASE_PUERTO = 5432
 SUPABASE_BASE = 'postgres'
+CARPETA_PROYECTO = Path(__file__).resolve().parent.parent
 
 CONFIGURACION_ENTIDADES = {
     "PROYECTO": ("proyecto", "id_proyecto", (
@@ -12,6 +16,25 @@ CONFIGURACION_ENTIDADES = {
     "ASIGNACION": ("asignacion", "id_asignacion", (
         "fecha", "horas_trabajadas", "tareas_realizadas", "id_empleado", "id_proyecto"))
 }
+
+def obtener_certificado_ssl():
+    configurado = os.getenv("SUPABASE_SSLROOTCERT", "").strip()
+    ruta = Path(configurado or "supabase-ca.crt").expanduser()
+    if not ruta.is_absolute():
+        ruta = CARPETA_PROYECTO / ruta
+    if not ruta.is_file():
+        raise FileNotFoundError(
+            "Falta el certificado de Supabase. Restaure supabase-ca.crt "
+            "o revise SUPABASE_SSLROOTCERT en .env."
+        )
+    return str(ruta.resolve())
+
+
+def mensaje_error_conexion(error):
+    if "certificate verify failed" in str(error).lower():
+        return "No se pudo verificar el certificado de Supabase. Revise el certificado configurado."
+    return "No se pudo conectar con Supabase. Revise el servidor, el puerto y la conexion a Internet."
+
 
 def conectar_supabase(usuario, contrasena, host, puerto=SUPABASE_PUERTO, base=SUPABASE_BASE):
     if not host or not usuario or not contrasena or not base:
@@ -25,20 +48,21 @@ def conectar_supabase(usuario, contrasena, host, puerto=SUPABASE_PUERTO, base=SU
     try:
         return psycopg.connect(
             host=host, port=puerto, user=usuario, password=contrasena, dbname=base,
-            sslmode="require", autocommit=True, connect_timeout=10,
+            sslmode="verify-full",
+            sslrootcert=obtener_certificado_ssl(),
+            ssl_min_protocol_version="TLSv1.2",
+            autocommit=True, connect_timeout=10,
             options="-c search_path=ecotech,pg_catalog", prepare_threshold=None
         )
     except psycopg.errors.InvalidCatalogName as error:
         raise ValueError("La base de datos indicada no existe.") from error
     except (psycopg.OperationalError, psycopg.InterfaceError) as error:
         estado = error.sqlstate
-        if estado and estado.startswith("28"):
+        if (estado and estado.startswith("28")) or "password authentication failed" in str(error).lower():
             raise PermissionError("El usuario o la contrasena de Supabase son incorrectos.") from error
         if estado == "3D000":
             raise ValueError("La base de datos indicada no existe.") from error
-        raise ConnectionError(
-            "No se pudo conectar con Supabase. Revise el servidor, puerto, credenciales, red y disponibilidad del servicio."
-        ) from error
+        raise ConnectionError(mensaje_error_conexion(error)) from error
 
 def verificar_tablas(conexion):
     cursor = conexion.cursor()

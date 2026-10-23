@@ -1,13 +1,13 @@
-from dominio.validaciones import (
+from validaciones import (
     validar_nombre_entidad, validar_descripcion,
-    validar_fecha, validar_miembro, validar_presupuesto, validar_id
+    validar_fecha, validar_miembro, validar_presupuesto, validar_id_opcional
 )
 
 
 class Proyecto:
     def __init__(self, id_proyecto, nombre, descripcion_proyecto,
                  fecha_de_inicio, miembro, presupuesto):
-        self._id_proyecto = validar_id(id_proyecto) if id_proyecto is not None else None
+        self._id_proyecto = validar_id_opcional(id_proyecto)
         self._nombre = validar_nombre_entidad(nombre)
         self._descripcion_proyecto = validar_descripcion(descripcion_proyecto)
         self._fecha_de_inicio = validar_fecha(fecha_de_inicio)

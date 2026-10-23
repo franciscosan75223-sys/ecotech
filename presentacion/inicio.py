@@ -12,7 +12,7 @@ from psycopg import (
 
 from infraestructura.conexion import conectar_supabase, verificar_tablas
 from infraestructura.repositorio import contar_cuentas
-from infraestructura.seguridad import ServicioCifrado
+from dominio.servicioCifrado import ServicioCifrado
 from presentacion.entradas import (
     pedir_configuracion_conexion,
     pedir_contrasena
@@ -49,8 +49,12 @@ def conectar_con_reintentos():
                 usuario, contrasena, host, puerto, base
             )
 
-        except (PermissionError, ConnectionError) as error:
-            print("No se pudo conectar:", error)
+        except ConnectionError as error:
+            print(error)
+            return None
+
+        except PermissionError as error:
+            print(error)
 
             if not confirmar_reintento():
                 print("Programa finalizado.")
@@ -61,20 +65,33 @@ def conectar_con_reintentos():
             )
 
 
+def confirmar_recuperacion_clave():
+    print("Falta la clave de cifrado y existen cuentas guardadas.")
+    print("Si conserva la clave original, restaurela antes de continuar.")
+    print("Con una clave nueva debera restablecer las contrasenas de las cuentas.")
+    print("Se conservan los empleados, proyectos, departamentos, horas e historial.")
+    respuesta = input("Escriba CREAR NUEVA CLAVE para confirmar, o Enter para salir: ")
+    return respuesta.strip() == "CREAR NUEVA CLAVE"
+
+
 def preparar_servicio_cifrado(conexion, carpeta_proyecto):
-    ruta_configurada = os.getenv("ECOTECH_FERNET_KEY_FILE")
+    ruta_configurada = os.getenv("ECOTECH_FERNET_KEY_FILE", "").strip()
+    archivo_clave = Path(ruta_configurada or "clave_fernet.key").expanduser()
+    if not archivo_clave.is_absolute():
+        archivo_clave = carpeta_proyecto / archivo_clave
 
-    if ruta_configurada:
-        archivo_clave = Path(ruta_configurada)
-    else:
-        archivo_clave = carpeta_proyecto / "clave_fernet.key"
+    if archivo_clave.exists():
+        return ServicioCifrado(archivo_clave)
 
-    if contar_cuentas(conexion) > 0 and not archivo_clave.exists():
-        raise ValueError(
-            "Falta clave_fernet.key. Restaure la clave original."
-        )
+    recuperar = contar_cuentas(conexion) > 0
+    if recuperar and not confirmar_recuperacion_clave():
+        return None
 
-    return ServicioCifrado(archivo_clave)
+    servicio = ServicioCifrado(archivo_clave)
+    if recuperar:
+        print("Clave nueva creada. Guarde una copia privada de este archivo.")
+        print("Use la opcion 7 para consultar las cuentas y la 5 para restablecer cada contrasena.")
+    return servicio
 
 
 def mostrar_error_base_datos(error, conexion):
@@ -102,6 +119,10 @@ def iniciar_programa():
         servicio = preparar_servicio_cifrado(
             conexion, carpeta_proyecto
         )
+
+        if servicio is None:
+            print("Recuperacion cancelada. Programa finalizado.")
+            return
 
         print("Conexión a Supabase lista.")
         menu(conexion, servicio)

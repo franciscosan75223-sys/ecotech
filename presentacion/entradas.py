@@ -1,4 +1,3 @@
-import msvcrt
 import os
 from dominio import (
     Empleado,
@@ -7,7 +6,7 @@ from dominio import (
     Departamento,
     Asignacion
 )
-from dominio.validaciones import (
+from validaciones import (
     validar_nombre,
     validar_direccion,
     validar_telefono,
@@ -38,6 +37,12 @@ from infraestructura.conexion import (
 )
 
 def pedir_contrasena(mensaje):
+    if os.name != "nt":
+        from getpass import getpass
+        return getpass(mensaje)
+
+    import msvcrt
+
     print(mensaje, end="", flush=True)
     caracteres = []
 
@@ -119,13 +124,11 @@ def pedir_cuenta(correo, servicio):
     contrasena = pedir_dato("Contraseña de la cuenta: ", validar_contrasena, ocultar=True)
     return CuentaUsuario(nombre, correo, servicio, contrasena)
 
-def pedir_id_vinculado(conexion, entidad, solo_gerentes=False):
+def _registros_para_vincular(conexion, entidad, solo_gerentes):
     if entidad == "EMPLEADO":
-        registros = consultar_empleados(conexion)
-        disponibles = []
-        for empleado in registros:
-            if not solo_gerentes or empleado.get_rol() == "Gerente":
-                disponibles.append(empleado)
+        disponibles = consultar_empleados(conexion)
+        if solo_gerentes:
+            disponibles = [empleado for empleado in disponibles if empleado.get_rol() == "Gerente"]
         mensaje = "ID del gerente: " if solo_gerentes else "ID del empleado: "
     else:
         disponibles = consultar_proyectos(conexion)
@@ -134,15 +137,18 @@ def pedir_id_vinculado(conexion, entidad, solo_gerentes=False):
         if solo_gerentes:
             raise ValueError("Primero debe agregar un empleado con rol Gerente o actualizar su rol.")
         raise ValueError("Primero debe agregar al menos un " + entidad.lower() + ".")
+    return disponibles, mensaje
+
+
+def pedir_id_vinculado(conexion, entidad, solo_gerentes=False):
+    disponibles, mensaje = _registros_para_vincular(conexion, entidad, solo_gerentes)
+    buscar = buscar_empleado if entidad == "EMPLEADO" else buscar_proyecto
     print("Registros disponibles:")
     for registro in disponibles:
         print('ID {}: {}'.format(registro.get_id(), registro.get_nombre()))
     while True:
         numero = pedir_id(mensaje)
-        if entidad == "EMPLEADO":
-            fila = buscar_empleado(conexion, numero)
-        else:
-            fila = buscar_proyecto(conexion, numero)
+        fila = buscar(conexion, numero)
         if fila is None:
             print("Dato inválido: no existe ese ID. Corrija solo este dato.")
         elif solo_gerentes and validar_rol(fila["rol"]) != "Gerente":

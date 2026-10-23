@@ -5,7 +5,7 @@ from psycopg import (
 from dominio import (
     Tiempo
 )
-from dominio.validaciones import (
+from validaciones import (
     validar_fecha,
     validar_descripcion,
     validar_id,
@@ -40,7 +40,7 @@ from infraestructura.repositorio import (
 from infraestructura.conexion import (
     configuracion_entidad
 )
-from infraestructura.reportes import (
+from dominio.informe import (
     Informes
 )
 from presentacion.entradas import (
@@ -54,6 +54,11 @@ from presentacion.entradas import (
 from presentacion.errores import (
     mostrar_error_supabase
 )
+
+
+REGISTRO_NO_EXISTE = "No existe ese registro."
+ELIMINACION_CANCELADA = "Eliminación cancelada."
+EMPLEADO_NO_EXISTE = "No existe un empleado con ese ID."
 
 
 def mostrar_historial(conexion):
@@ -99,72 +104,6 @@ def mostrar_historial(conexion):
         else:
             print(json.dumps(json.loads(fila[campo]), ensure_ascii=False, indent=2))
 
-def menu_entidad(conexion, entidad):
-    configuracion_entidad(entidad)
-    while True:
-        print("\nGESTIÓN DE " + entidad)
-        print("1. Agregar")
-        print("2. Consultar todos")
-        print("3. Actualizar por ID")
-        print("4. Eliminar por ID")
-        print("5. Buscar por ID")
-        if entidad == "ASIGNACION":
-            print("6. Sumar horas trabajadas")
-        print("0. Volver al menú principal")
-        opcion = input("Seleccione una opción: ").strip()
-        try:
-            if opcion == "0":
-                return
-            if opcion == "1":
-                registro = pedir_registro(conexion, entidad)
-                id_nuevo = guardar_registro(conexion, entidad, registro)
-                print("Registro guardado en Supabase; cambio registrado. ID:", id_nuevo)
-            elif opcion == "2":
-                registros = consultar_registros(conexion, entidad)
-                if not registros:
-                    print("No hay registros de esta entidad.")
-                for registro in registros:
-                    print(registro)
-            elif opcion == "3":
-                id_registro = pedir_id("ID del registro a actualizar: ")
-                if buscar_registro(conexion, entidad, id_registro) is None:
-                    print("No existe ese registro.")
-                    continue
-                registro = pedir_registro(conexion, entidad, id_registro)
-                if guardar_registro(conexion, entidad, registro, actualizar=True):
-                    print("Registro actualizado en Supabase; cambio registrado.")
-                else:
-                    print("El registro ya no existe.")
-            elif opcion == "4":
-                id_registro = pedir_id("ID del registro a eliminar: ")
-                confirmar = input("¿Eliminar este registro? (s/n): ").strip().lower()
-                if confirmar != "s":
-                    print("Eliminación cancelada.")
-                elif eliminar_registro(conexion, entidad, id_registro):
-                    print("Registro eliminado de Supabase; historial conservado.")
-                else:
-                    print("No existe ese registro.")
-            elif opcion == "5":
-                id_registro = pedir_id("ID del registro a buscar: ")
-                fila = buscar_registro(conexion, entidad, id_registro)
-                if fila is None:
-                    print("No existe ese registro.")
-                else:
-                    print(objeto_desde_fila(entidad, fila))
-            elif opcion == "6" and entidad == "ASIGNACION":
-                id_asignacion = pedir_id("ID de la asignación: ")
-                horas = pedir_dato("Horas adicionales: ", validar_horas_adicionales)
-                total = registrar_horas_asignacion(conexion, id_asignacion, horas)
-                if total is None:
-                    print("No existe esa asignación.")
-                else:
-                    print('Horas guardadas en Base de datos: {}. Cambio registrado.'.format(total))
-            else:
-                print("Opción inválida. Elija una de las opciones mostradas.")
-        except ValueError as error:
-            print("Dato inválido:", error)
-        except (IntegrityError, DataError, OperationalError, InterfaceError, ProgrammingError) as error:
-            mostrar_error_supabase(error, conexion)
 
 def pedir_y_guardar_tiempo(conexion):
     id_empleado = pedir_id_vinculado(conexion, "EMPLEADO")
@@ -176,19 +115,22 @@ def pedir_y_guardar_tiempo(conexion):
     id_registro = guardar_tiempo(conexion, tiempo)
     print("Registro de tiempo guardado en Supabase. ID:", id_registro)
 
-def mostrar_informes_desde_supabase(conexion):
-    informe = Informes(
+
+def crear_informe_desde_supabase(conexion):
+    return Informes(
         consultar_empleados(conexion), consultar_proyectos(conexion),
         consultar_departamentos(conexion), consultar_asignaciones(conexion)
     )
+
+
+def mostrar_informes_desde_supabase(conexion):
+    informe = crear_informe_desde_supabase(conexion)
     print("\nINFORME GENERAL DE ECOTECH")
     informe.generar_informes()
 
+
 def exportar_informe_desde_supabase(conexion, formato):
-    informe = Informes(
-        consultar_empleados(conexion), consultar_proyectos(conexion),
-        consultar_departamentos(conexion), consultar_asignaciones(conexion)
-    )
+    informe = crear_informe_desde_supabase(conexion)
     if formato == "excel":
         ruta = informe.exportar_excel()
     elif formato == "pdf":
@@ -197,6 +139,235 @@ def exportar_informe_desde_supabase(conexion, formato):
         raise ValueError("Formato no reconocido.")
     print("Informe guardado en:", ruta)
     return ruta
+
+def ejecutar_accion(acciones, opcion, mensaje_invalido):
+    seleccion = acciones.get(opcion)
+    if seleccion is None:
+        print(mensaje_invalido)
+        return
+    funcion, argumentos = seleccion
+    funcion(*argumentos)
+
+
+def agregar_registro_desde_menu(conexion, entidad):
+    registro = pedir_registro(conexion, entidad)
+    id_nuevo = guardar_registro(conexion, entidad, registro)
+    print("Registro guardado en Supabase; cambio registrado. ID:", id_nuevo)
+
+
+def listar_registros_desde_menu(conexion, entidad):
+    registros = consultar_registros(conexion, entidad)
+    if not registros:
+        print("No hay registros de esta entidad.")
+    for registro in registros:
+        print(registro)
+
+
+def actualizar_registro_desde_menu(conexion, entidad):
+    id_registro = pedir_id("ID del registro a actualizar: ")
+    if buscar_registro(conexion, entidad, id_registro) is None:
+        print(REGISTRO_NO_EXISTE)
+        return
+    registro = pedir_registro(conexion, entidad, id_registro)
+    if guardar_registro(conexion, entidad, registro, actualizar=True):
+        print("Registro actualizado en Supabase; cambio registrado.")
+    else:
+        print("El registro ya no existe.")
+
+
+def eliminar_registro_desde_menu(conexion, entidad):
+    id_registro = pedir_id("ID del registro a eliminar: ")
+    confirmar = input("¿Eliminar este registro? (s/n): ").strip().lower()
+    if confirmar != "s":
+        print(ELIMINACION_CANCELADA)
+        return
+    if eliminar_registro(conexion, entidad, id_registro):
+        print("Registro eliminado de Supabase; historial conservado.")
+    else:
+        print(REGISTRO_NO_EXISTE)
+
+
+def buscar_registro_desde_menu(conexion, entidad):
+    id_registro = pedir_id("ID del registro a buscar: ")
+    fila = buscar_registro(conexion, entidad, id_registro)
+    if fila is None:
+        print(REGISTRO_NO_EXISTE)
+    else:
+        print(objeto_desde_fila(entidad, fila))
+
+
+def sumar_horas_desde_menu(conexion):
+    id_asignacion = pedir_id("ID de la asignación: ")
+    horas = pedir_dato("Horas adicionales: ", validar_horas_adicionales)
+    total = registrar_horas_asignacion(conexion, id_asignacion, horas)
+    if total is None:
+        print("No existe esa asignación.")
+    else:
+        print('Horas guardadas en Base de datos: {}. Cambio registrado.'.format(total))
+
+
+def menu_entidad(conexion, entidad):
+    configuracion_entidad(entidad)
+    acciones = {
+        "1": (agregar_registro_desde_menu, (conexion, entidad)),
+        "2": (listar_registros_desde_menu, (conexion, entidad)),
+        "3": (actualizar_registro_desde_menu, (conexion, entidad)),
+        "4": (eliminar_registro_desde_menu, (conexion, entidad)),
+        "5": (buscar_registro_desde_menu, (conexion, entidad)),
+    }
+    if entidad == "ASIGNACION":
+        acciones["6"] = (sumar_horas_desde_menu, (conexion,))
+    while True:
+        print("\nGESTIÓN DE " + entidad)
+        print("1. Agregar")
+        print("2. Consultar todos")
+        print("3. Actualizar por ID")
+        print("4. Eliminar por ID")
+        print("5. Buscar por ID")
+        if entidad == "ASIGNACION":
+            print("6. Sumar horas trabajadas")
+        print("0. Volver al menú principal")
+        opcion = input("Seleccione una opción: ").strip()
+        if opcion == "0":
+            return
+        try:
+            ejecutar_accion(acciones, opcion, "Opción inválida. Elija una de las opciones mostradas.")
+        except ValueError as error:
+            print("Dato inválido:", error)
+        except (IntegrityError, DataError, OperationalError, InterfaceError, ProgrammingError) as error:
+            mostrar_error_supabase(error, conexion)
+
+
+def agregar_empleado_desde_menu(conexion, servicio):
+    empleado = pedir_empleado(None, conexion)
+    empleado.asignar_cuenta(pedir_cuenta(empleado.get_correo(), servicio))
+    id_nuevo = agregar_empleado(conexion, empleado)
+    print("Empleado y cuenta guardados en Supabase. ID:", id_nuevo)
+
+
+def listar_empleados_desde_menu(conexion):
+    empleados = consultar_empleados(conexion)
+    if not empleados:
+        print("No hay empleados registrados.")
+    for empleado in empleados:
+        print(empleado)
+
+
+def actualizar_empleado_desde_menu(conexion):
+    id_empleado = pedir_id("ID del empleado a actualizar: ")
+    if buscar_empleado(conexion, id_empleado) is None:
+        print(EMPLEADO_NO_EXISTE)
+        return
+    empleado = pedir_empleado(id_empleado, conexion)
+    if actualizar_empleado(conexion, empleado):
+        print("Datos guardados en Supabase; los cambios quedan en el historial.")
+    else:
+        print(EMPLEADO_NO_EXISTE)
+
+
+def eliminar_empleado_desde_menu(conexion):
+    id_empleado = pedir_id("ID del empleado a eliminar: ")
+    confirmar = input("Se eliminará también su cuenta. ¿Continuar? (s/n): ")
+    if confirmar.strip().lower() != "s":
+        print(ELIMINACION_CANCELADA)
+        return
+    if eliminar_empleado(conexion, id_empleado):
+        print("Empleado y cuenta eliminados de Supabase; historial conservado.")
+    else:
+        print(EMPLEADO_NO_EXISTE)
+
+
+def guardar_cuenta_desde_menu(conexion, servicio, actualizar=False):
+    id_empleado = pedir_id("ID del empleado: ")
+    empleado = buscar_empleado(conexion, id_empleado)
+    if empleado is None:
+        print(EMPLEADO_NO_EXISTE)
+        return
+    cuenta = pedir_cuenta(empleado["correo"], servicio)
+    if actualizar:
+        if actualizar_cuenta(conexion, id_empleado, cuenta):
+            print("Cuenta actualizada en Supabase; cambio registrado.")
+        else:
+            print("No existe una cuenta para ese empleado.")
+        return
+    id_cuenta = agregar_cuenta(conexion, id_empleado, cuenta)
+    if id_cuenta is None:
+        print(EMPLEADO_NO_EXISTE)
+    else:
+        print("Cuenta guardada en Supabase. ID de cuenta:", id_cuenta)
+
+
+def comprobar_acceso_desde_menu(conexion, servicio):
+    nombre = pedir_dato("Nombre de usuario: ", validar_nombre_usuario, revisar_formato=True)
+    contrasena = pedir_dato("Contraseña: ", validar_contrasena, ocultar=True)
+    if comprobar_acceso(conexion, nombre, contrasena, servicio):
+        print("Acceso autorizado.")
+    else:
+        print("Acceso rechazado.")
+
+
+def listar_cuentas_desde_menu(conexion):
+    cuentas = consultar_cuentas(conexion)
+    if not cuentas:
+        print("No hay cuentas registradas.")
+    for cuenta in cuentas:
+        print(
+            'Cuenta {} | Empleado {}: {} | Usuario: {} | {}'.format(
+                cuenta['id_cuenta'], cuenta['id_empleado'], cuenta['empleado'],
+                cuenta['nombre_usuario'], cuenta['correo']
+            )
+        )
+
+
+def eliminar_cuenta_desde_menu(conexion):
+    id_cuenta = pedir_id("ID de la cuenta a eliminar (opción 7): ")
+    confirmar = input("El empleado se conservará. ¿Eliminar cuenta? (s/n): ")
+    if confirmar.strip().lower() != "s":
+        print(ELIMINACION_CANCELADA)
+        return
+    if eliminar_cuenta(conexion, id_cuenta):
+        print("Cuenta eliminada de Supabase; empleado e historial conservados.")
+    else:
+        print("No existe una cuenta con ese ID.")
+
+
+def ejecutar_opcion_menu(opcion, conexion, servicio):
+    acciones = {
+        "1": (agregar_empleado_desde_menu, (conexion, servicio)),
+        "2": (listar_empleados_desde_menu, (conexion,)),
+        "3": (actualizar_empleado_desde_menu, (conexion,)),
+        "4": (eliminar_empleado_desde_menu, (conexion,)),
+        "5": (guardar_cuenta_desde_menu, (conexion, servicio, True)),
+        "6": (comprobar_acceso_desde_menu, (conexion, servicio)),
+        "7": (listar_cuentas_desde_menu, (conexion,)),
+        "8": (guardar_cuenta_desde_menu, (conexion, servicio, False)),
+        "9": (eliminar_cuenta_desde_menu, (conexion,)),
+        "10": (mostrar_historial, (conexion,)),
+        "11": (menu_entidad, (conexion, "PROYECTO")),
+        "12": (menu_entidad, (conexion, "DEPARTAMENTO")),
+        "13": (menu_entidad, (conexion, "ASIGNACION")),
+        "14": (pedir_y_guardar_tiempo, (conexion,)),
+        "15": (mostrar_informes_desde_supabase, (conexion,)),
+        "16": (exportar_informe_desde_supabase, (conexion, "excel")),
+        "17": (exportar_informe_desde_supabase, (conexion, "pdf")),
+    }
+    try:
+        ejecutar_accion(acciones, opcion, "Opción inválida. Elige una opción del 0 al 17.")
+    except ValueError as error:
+        print("Dato inválido:", error)
+    except ConnectionError:
+        raise
+    except PermissionError as error:
+        print("No se pudo guardar el informe por falta de permisos:", error)
+    except FileNotFoundError as error:
+        print("No se encontro el archivo o la carpeta:", error)
+    except OSError as error:
+        print("No se pudo guardar el archivo:", error)
+    except ModuleNotFoundError:
+        print("Falta una biblioteca. Instale las dependencias de requirements.txt.")
+    except (IntegrityError, DataError, OperationalError, InterfaceError, ProgrammingError) as error:
+        mostrar_error_supabase(error, conexion)
+
 
 def menu(conexion, servicio):
     while True:
@@ -220,112 +391,6 @@ def menu(conexion, servicio):
         print("17. Guardar informe en PDF (.pdf)")
         print("0. Salir")
         opcion = input("Seleccione una opción: ").strip()
-        try:
-            if opcion == "1":
-                empleado = pedir_empleado(None, conexion)
-                empleado.asignar_cuenta(
-                    pedir_cuenta(empleado.get_correo(), servicio)
-                )
-                id_nuevo = agregar_empleado(conexion, empleado)
-                print("Empleado y cuenta guardados en Supabase. ID:", id_nuevo)
-            elif opcion == "2":
-                empleados = consultar_empleados(conexion)
-                if not empleados:
-                    print("No hay empleados registrados.")
-                for empleado in empleados:
-                    print(empleado)
-            elif opcion == "3":
-                id_empleado = pedir_id("ID del empleado a actualizar: ")
-                if buscar_empleado(conexion, id_empleado) is None:
-                    print("No existe un empleado con ese ID.")
-                    continue
-                empleado = pedir_empleado(id_empleado, conexion)
-                if actualizar_empleado(conexion, empleado):
-                    print("Datos guardados en Supabase; los cambios quedan en el historial.")
-                else:
-                    print("No existe un empleado con ese ID.")
-            elif opcion == "4":
-                id_empleado = pedir_id("ID del empleado a eliminar: ")
-                confirmar = input("Se eliminará también su cuenta. ¿Continuar? (s/n): ")
-                if confirmar.strip().lower() != "s":
-                    print("Eliminación cancelada.")
-                elif eliminar_empleado(conexion, id_empleado):
-                    print("Empleado y cuenta eliminados de Supabase; historial conservado.")
-                else:
-                    print("No existe un empleado con ese ID.")
-            elif opcion in ("5", "8"):
-                id_empleado = pedir_id("ID del empleado: ")
-                empleado = buscar_empleado(conexion, id_empleado)
-                if empleado is None:
-                    print("No existe un empleado con ese ID.")
-                    continue
-                cuenta = pedir_cuenta(empleado["correo"], servicio)
-                if opcion == "5":
-                    if actualizar_cuenta(conexion, id_empleado, cuenta):
-                        print("Cuenta actualizada en Supabase; cambio registrado.")
-                    else:
-                        print("No existe una cuenta para ese empleado.")
-                else:
-                    id_cuenta = agregar_cuenta(conexion, id_empleado, cuenta)
-                    if id_cuenta is None:
-                        print("No existe un empleado con ese ID.")
-                    else:
-                        print("Cuenta guardada en Supabase. ID de cuenta:", id_cuenta)
-            elif opcion == "6":
-                nombre = pedir_dato("Nombre de usuario: ", validar_nombre_usuario, revisar_formato=True)
-                contrasena = pedir_dato("Contraseña: ", validar_contrasena, ocultar=True)
-                if comprobar_acceso(conexion, nombre, contrasena, servicio):
-                    print("Acceso autorizado.")
-                else:
-                    print("Acceso rechazado.")
-            elif opcion == "7":
-                cuentas = consultar_cuentas(conexion)
-                if not cuentas:
-                    print("No hay cuentas registradas.")
-                for cuenta in cuentas:
-                    print(
-                        'Cuenta {} | Empleado {}: {} | Usuario: {} | {}'.format(cuenta['id_cuenta'], cuenta['id_empleado'], cuenta['empleado'], cuenta['nombre_usuario'], cuenta['correo'])
-                    )
-            elif opcion == "9":
-                id_cuenta = pedir_id("ID de la cuenta a eliminar (opción 7): ")
-                confirmar = input("El empleado se conservará. ¿Eliminar cuenta? (s/n): ")
-                if confirmar.strip().lower() != "s":
-                    print("Eliminación cancelada.")
-                elif eliminar_cuenta(conexion, id_cuenta):
-                    print("Cuenta eliminada de Supabase; empleado e historial conservados.")
-                else:
-                    print("No existe una cuenta con ese ID.")
-            elif opcion == "10":
-                mostrar_historial(conexion)
-            elif opcion == "11":
-                menu_entidad(conexion, "PROYECTO")
-            elif opcion == "12":
-                menu_entidad(conexion, "DEPARTAMENTO")
-            elif opcion == "13":
-                menu_entidad(conexion, "ASIGNACION")
-            elif opcion == "14":
-                pedir_y_guardar_tiempo(conexion)
-            elif opcion == "15":
-                mostrar_informes_desde_supabase(conexion)
-            elif opcion == "16":
-                exportar_informe_desde_supabase(conexion, "excel")
-            elif opcion == "17":
-                exportar_informe_desde_supabase(conexion, "pdf")
-            elif opcion == "0":
-                break
-            else:
-                print("Opción inválida. Elige una opción del 0 al 17.")
-        except ValueError as error:
-            print("Dato inválido:", error)
-        except ConnectionError:
-            raise
-        except PermissionError as error:
-            print("No se pudo guardar el informe por falta de permisos:", error)
-        except FileNotFoundError as error:
-            print("No se encontro el archivo o la carpeta:", error)
-        except OSError as error:
-            print("No se pudo guardar el archivo:", error)
-        except ModuleNotFoundError:
-            print("Falta una biblioteca. Instale las dependencias de requirements.txt.")
-        except (IntegrityError, DataError, OperationalError, InterfaceError, ProgrammingError) as error:
-            mostrar_error_supabase(error, conexion)
+        if opcion == "0":
+            return
+        ejecutar_opcion_menu(opcion, conexion, servicio)

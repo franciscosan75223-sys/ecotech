@@ -1,4 +1,4 @@
-from dominio.validaciones import (
+from validaciones import (
     validar_fecha, validar_horas_adicionales, validar_descripcion
 )
 

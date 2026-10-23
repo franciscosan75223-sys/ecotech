@@ -12,15 +12,20 @@ from dominio import (
     Asignacion
 )
 
-from dominio.excepciones import RegistroNoEncontradoError
-
-from dominio.validaciones import (
+from validaciones import (
     validar_id,
     validar_rol,
     validar_horas_adicionales
 )
 
 from infraestructura.conexion import configuracion_entidad
+
+
+REGISTRO_NO_ENCONTRADO = "No existe el registro solicitado."
+
+
+class RegistroNoEncontradoError(LookupError):
+    """El registro solicitado no existe en la base de datos."""
 
 
 def leer_empleado(cursor, id_empleado):
@@ -249,7 +254,7 @@ def actualizar_empleado(conexion, empleado):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         cuenta_anterior = leer_cuenta(
@@ -362,7 +367,7 @@ def eliminar_empleado(conexion, id_empleado):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         cuenta = leer_cuenta(cursor, id_empleado)
@@ -500,7 +505,7 @@ def actualizar_cuenta(conexion, id_empleado, cuenta):
 
         if empleado is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         if cuenta.get_correo() != empleado["correo"]:
@@ -515,7 +520,7 @@ def actualizar_cuenta(conexion, id_empleado, cuenta):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         cursor.execute("""
@@ -580,7 +585,7 @@ def eliminar_cuenta(conexion, id_cuenta):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         cursor.execute("""
@@ -839,7 +844,7 @@ def agregar_registro(conexion, entidad, registro):
 
     parametros = SQL(", ").join(
         Placeholder()
-        for campo in campos
+        for _ in campos
     )
 
     consulta = SQL(
@@ -921,7 +926,7 @@ def actualizar_registro(conexion, entidad, registro):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         verificar_relaciones(
@@ -973,7 +978,7 @@ def actualizar_registro(conexion, entidad, registro):
 
 
 def eliminar_registro(conexion, entidad, id_registro):
-    tabla, campo_id, campos = configuracion_entidad(entidad)
+    tabla, campo_id, _ = configuracion_entidad(entidad)
     id_registro = validar_id(id_registro)
 
     cursor = conexion.cursor(row_factory=dict_row)
@@ -990,7 +995,7 @@ def eliminar_registro(conexion, entidad, id_registro):
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         consulta = SQL(
@@ -1035,123 +1040,63 @@ def eliminar_registro(conexion, entidad, id_registro):
 
 
 def agregar_proyecto(conexion, proyecto):
-    return guardar_registro(
-        conexion,
-        "PROYECTO",
-        proyecto
-    )
+    return guardar_registro(conexion, 'PROYECTO', proyecto)
 
 
 def actualizar_proyecto(conexion, proyecto):
-    return guardar_registro(
-        conexion,
-        "PROYECTO",
-        proyecto,
-        actualizar=True
-    )
+    return guardar_registro(conexion, 'PROYECTO', proyecto, actualizar=True)
 
 
 def consultar_proyectos(conexion):
-    return consultar_registros(
-        conexion,
-        "PROYECTO"
-    )
+    return consultar_registros(conexion, 'PROYECTO')
 
 
 def buscar_proyecto(conexion, id_proyecto):
-    return buscar_registro(
-        conexion,
-        "PROYECTO",
-        id_proyecto
-    )
+    return buscar_registro(conexion, 'PROYECTO', id_proyecto)
 
 
 def eliminar_proyecto(conexion, id_proyecto):
-    return eliminar_registro(
-        conexion,
-        "PROYECTO",
-        id_proyecto
-    )
+    return eliminar_registro(conexion, 'PROYECTO', id_proyecto)
 
 
 def agregar_departamento(conexion, departamento):
-    return guardar_registro(
-        conexion,
-        "DEPARTAMENTO",
-        departamento
-    )
+    return guardar_registro(conexion, 'DEPARTAMENTO', departamento)
 
 
 def actualizar_departamento(conexion, departamento):
-    return guardar_registro(
-        conexion,
-        "DEPARTAMENTO",
-        departamento,
-        actualizar=True
-    )
+    return guardar_registro(conexion, 'DEPARTAMENTO', departamento, actualizar=True)
 
 
 def consultar_departamentos(conexion):
-    return consultar_registros(
-        conexion,
-        "DEPARTAMENTO"
-    )
+    return consultar_registros(conexion, 'DEPARTAMENTO')
 
 
 def buscar_departamento(conexion, id_departamento):
-    return buscar_registro(
-        conexion,
-        "DEPARTAMENTO",
-        id_departamento
-    )
+    return buscar_registro(conexion, 'DEPARTAMENTO', id_departamento)
 
 
 def eliminar_departamento(conexion, id_departamento):
-    return eliminar_registro(
-        conexion,
-        "DEPARTAMENTO",
-        id_departamento
-    )
+    return eliminar_registro(conexion, 'DEPARTAMENTO', id_departamento)
 
 
 def agregar_asignacion(conexion, asignacion):
-    return guardar_registro(
-        conexion,
-        "ASIGNACION",
-        asignacion
-    )
+    return guardar_registro(conexion, 'ASIGNACION', asignacion)
 
 
 def actualizar_asignacion(conexion, asignacion):
-    return guardar_registro(
-        conexion,
-        "ASIGNACION",
-        asignacion,
-        actualizar=True
-    )
+    return guardar_registro(conexion, 'ASIGNACION', asignacion, actualizar=True)
 
 
 def consultar_asignaciones(conexion):
-    return consultar_registros(
-        conexion,
-        "ASIGNACION"
-    )
+    return consultar_registros(conexion, 'ASIGNACION')
 
 
 def buscar_asignacion(conexion, id_asignacion):
-    return buscar_registro(
-        conexion,
-        "ASIGNACION",
-        id_asignacion
-    )
+    return buscar_registro(conexion, 'ASIGNACION', id_asignacion)
 
 
 def eliminar_asignacion(conexion, id_asignacion):
-    return eliminar_registro(
-        conexion,
-        "ASIGNACION",
-        id_asignacion
-    )
+    return eliminar_registro(conexion, 'ASIGNACION', id_asignacion)
 
 
 def registrar_horas_asignacion(
@@ -1172,7 +1117,7 @@ def registrar_horas_asignacion(
 
         if anteriores is None:
             raise RegistroNoEncontradoError(
-                "No existe el registro solicitado."
+                REGISTRO_NO_ENCONTRADO
             )
 
         asignacion = objeto_desde_fila(

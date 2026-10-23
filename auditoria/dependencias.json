@@ -1,0 +1,65 @@
+{
+  "dependencies": [
+    {
+      "name": "psycopg",
+      "version": "3.3.6",
+      "vulns": []
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.4",
+      "vulns": []
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "vulns": []
+    },
+    {
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "vulns": []
+    },
+    {
+      "name": "reportlab",
+      "version": "4.4.9",
+      "vulns": []
+    },
+    {
+      "name": "psycopg-binary",
+      "version": "3.3.6",
+      "vulns": []
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "vulns": []
+    },
+    {
+      "name": "pillow",
+      "version": "13.0.0",
+      "vulns": []
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "vulns": []
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "vulns": []
+    },
+    {
+      "name": "et-xmlfile",
+      "version": "2.0.0",
+      "vulns": []
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "vulns": []
+    }
+  ],
+  "fixes": []
+}

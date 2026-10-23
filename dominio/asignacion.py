@@ -1,18 +1,18 @@
-from dominio.validaciones import (
+from validaciones import (
     validar_fecha, validar_horas, validar_descripcion,
-    validar_id, validar_horas_adicionales
+    validar_id_opcional, validar_horas_adicionales
 )
 
 
 class Asignacion:
     def __init__(self, id_asignacion, fecha, horas_trabajadas, tareas_realizadas,
                  id_empleado=None, id_proyecto=None):
-        self._id_asignacion = validar_id(id_asignacion) if id_asignacion is not None else None
+        self._id_asignacion = validar_id_opcional(id_asignacion)
         self._fecha = validar_fecha(fecha)
         self.__horas_trabajadas = validar_horas(horas_trabajadas)
         self._tareas_realizadas = validar_descripcion(tareas_realizadas)
-        self._id_empleado = validar_id(id_empleado) if id_empleado is not None else None
-        self._id_proyecto = validar_id(id_proyecto) if id_proyecto is not None else None
+        self._id_empleado = validar_id_opcional(id_empleado)
+        self._id_proyecto = validar_id_opcional(id_proyecto)
 
     def get_id(self):
         return self._id_asignacion

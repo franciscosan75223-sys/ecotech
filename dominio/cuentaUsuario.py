@@ -1,4 +1,4 @@
-from dominio.validaciones import validar_nombre_usuario, validar_correo, validar_contrasena
+from validaciones import validar_nombre_usuario, validar_correo, validar_contrasena
 
 
 class CuentaUsuario:
@@ -18,7 +18,7 @@ class CuentaUsuario:
 
     def set_contrasena(self, contrasena):
         contrasena = validar_contrasena(contrasena)
-        self.__contrasena_cifrada = self.__servicio.cifrar(contrasena)
+        self.__contrasena_cifrada = self.__servicio.cifrar_contrasena(contrasena)
 
     def get_contrasena_cifrada(self):
         if self.__contrasena_cifrada is None:
