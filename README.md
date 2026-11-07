@@ -4,7 +4,7 @@ Aplicación de consola en Python con PostgreSQL/Supabase. Permite administrar em
 
 ## Instalación en Windows
 
-Requiere Python 3.10 o posterior. Extrae `ecotech_listo.zip` en una carpeta nueva y abre esa carpeta en Visual Studio Code. El ZIP contiene directamente `main.py`, `requirements.txt`, `supabase-ca.crt` y las carpetas del proyecto, sin una carpeta contenedora adicional. Crea el entorno virtual desde esa misma carpeta. Desde una terminal situada en esa carpeta ejecuta:
+Requiere Python 3.10 o posterior. Clona o descarga este repositorio y abre su carpeta raíz en Visual Studio Code. Crea el entorno virtual desde esa misma carpeta. Desde una terminal situada en la carpeta raíz ejecuta:
 
 ```powershell
 py -m venv .venv
@@ -102,7 +102,7 @@ Desde el menú: opción **15** para mostrar el informe, **16** para Excel y **17
 
 Las instrucciones completas están en [COMO_EXPORTAR.md](COMO_EXPORTAR.md).
 
-## Comprobaciones de esta entrega
+## Comprobaciones históricas
 
 Revisión local realizada el **22 de octubre de 2026**, sobre los 18 archivos Python de la aplicación:
 

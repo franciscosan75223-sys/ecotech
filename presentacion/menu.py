@@ -24,6 +24,8 @@ from infraestructura.repositorio import (
     actualizar_cuenta,
     eliminar_cuenta,
     comprobar_acceso,
+    consultar_datos_empleado,
+    consultar_horas_empleado,
     buscar_registro,
     objeto_desde_fila,
     consultar_registros,
@@ -205,8 +207,16 @@ def sumar_horas_desde_menu(conexion):
     else:
         print('Horas guardadas en Base de datos: {}. Cambio registrado.'.format(total))
 
+def exigir_gerente(sesion):
+    if sesion is None or sesion.get("rol") != "Gerente":
+        raise PermissionError(
+            "No tienes permisos para realizar esta operación."
 
-def menu_entidad(conexion, entidad):
+        )
+
+def menu_entidad(conexion, entidad, sesion):
+    exigir_gerente(sesion)
+
     configuracion_entidad(entidad)
     acciones = {
         "1": (agregar_registro_desde_menu, (conexion, entidad)),
@@ -331,7 +341,7 @@ def eliminar_cuenta_desde_menu(conexion):
         print("No existe una cuenta con ese ID.")
 
 
-def ejecutar_opcion_menu(opcion, conexion, servicio):
+def ejecutar_opcion_menu(opcion, conexion, servicio, sesion):
     acciones = {
         "1": (agregar_empleado_desde_menu, (conexion, servicio)),
         "2": (listar_empleados_desde_menu, (conexion,)),
@@ -343,9 +353,9 @@ def ejecutar_opcion_menu(opcion, conexion, servicio):
         "8": (guardar_cuenta_desde_menu, (conexion, servicio, False)),
         "9": (eliminar_cuenta_desde_menu, (conexion,)),
         "10": (mostrar_historial, (conexion,)),
-        "11": (menu_entidad, (conexion, "PROYECTO")),
-        "12": (menu_entidad, (conexion, "DEPARTAMENTO")),
-        "13": (menu_entidad, (conexion, "ASIGNACION")),
+        "11": (menu_entidad, (conexion, "PROYECTO", sesion)),
+        "12": (menu_entidad, (conexion, "DEPARTAMENTO", sesion)),
+        "13": (menu_entidad, (conexion, "ASIGNACION", sesion)),
         "14": (pedir_y_guardar_tiempo, (conexion,)),
         "15": (mostrar_informes_desde_supabase, (conexion,)),
         "16": (exportar_informe_desde_supabase, (conexion, "excel")),
@@ -368,8 +378,104 @@ def ejecutar_opcion_menu(opcion, conexion, servicio):
     except (IntegrityError, DataError, OperationalError, InterfaceError, ProgrammingError) as error:
         mostrar_error_supabase(error, conexion)
 
+def menu_empleado(conexion, sesion):
+    id_empleado = sesion["id_empleado"]
 
+    while True:
+        print("\nECOTECH - MENÚ DEL EMPLEADO")
+        print("Usuario:", sesion["nombre_usuario"])
+        print("1. Consultar mis datos")
+        print("2. Consultar mis horas de trabajo")
+        print("0. Cerrar sesión")
+
+        opcion = input("Seleccione una opción: ").strip()
+
+        try:
+            if opcion == "1":
+                empleado = consultar_datos_empleado(
+                    conexion, id_empleado
+                )
+
+                if empleado is None:
+                    print("No se encontraron tus datos.")
+                    continue
+
+                print("\nMIS DATOS")
+                print("ID:", empleado["id_empleado"])
+                print("Nombre:", empleado["nombre"])
+                print("Dirección:", empleado["direccion"])
+                print("Teléfono:", empleado["telefono"])
+                print("Correo:", empleado["correo"])
+                print("Fecha de inicio:", empleado["fecha_inicio"])
+                print("Salario:", empleado["salario"])
+                print("Rol:", empleado["rol"])
+
+            elif opcion == "2":
+                registros = consultar_horas_empleado(
+                    conexion, id_empleado
+                )
+
+                print("\nMIS HORAS DE TRABAJO")
+
+                if not registros:
+                    print("Todavía no tienes horas registradas.")
+                    continue
+
+                for registro in registros:
+                    print("--------------------------------")
+                    print("Fecha:", registro["fecha"])
+                    print("Proyecto:", registro["nombre_proyecto"] or "Sin vincular")
+                    print("Horas:", registro["horas_trabajadas"])
+                    print("Tareas:", registro["tareas_realizadas"])
+
+            elif opcion == "0":
+                print("Sesión finalizada.")
+                return
+
+            else:
+                print("Opción inválida.")
+
+        except ValueError as error:
+            print("Dato inválido:", error)
 def menu(conexion, servicio):
+    print("\nECOTECH - INICIO DE SESIÓN")
+
+    nombre = pedir_dato(
+        "Nombre de usuario: ",
+        validar_nombre_usuario,
+        revisar_formato=True
+    )
+
+    contrasena = pedir_dato(
+        "Contraseña: ",
+        validar_contrasena,
+        ocultar=True
+    )
+
+    sesion = comprobar_acceso(
+        conexion, nombre, contrasena, servicio
+    )
+
+    if sesion is None:
+        print("Usuario o contraseña incorrectos.")
+        return
+
+    print("\nBienvenido a EcoTech.")
+
+    if sesion["rol"] == "Gerente":
+        print("Acceso autorizado como Gerente.")
+        menu_gerente(conexion, servicio, sesion)
+
+    elif sesion["rol"] == "Empleado":
+        print("Acceso autorizado como Empleado.")
+        menu_empleado(conexion, sesion)
+
+    else:
+        print("El rol de esta cuenta no está autorizado.")
+
+def menu_gerente(conexion, servicio, sesion):
+    exigir_gerente(sesion)
+
     while True:
         print("\nCRUD DE EMPLEADOS Y CUENTAS - SUPABASE")
         print("1. Agregar empleado y cuenta")
@@ -393,4 +499,4 @@ def menu(conexion, servicio):
         opcion = input("Seleccione una opción: ").strip()
         if opcion == "0":
             return
-        ejecutar_opcion_menu(opcion, conexion, servicio)
+        ejecutar_opcion_menu(opcion, conexion, servicio, sesion)

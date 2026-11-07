@@ -113,6 +113,17 @@ BEGIN
         REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
     END IF;
 END $$;
+
+REVOKE CREATE ON SCHEMA ecotech
+FROM PUBLIC, anon, authenticated;
+
+-- Evitar permisos heredados sobre futuras tablas.
+ALTER DEFAULT PRIVILEGES IN SCHEMA ecotech
+REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated;
+
+-- Evitar permisos heredados sobre futuras secuencias.
+ALTER DEFAULT PRIVILEGES IN SCHEMA ecotech
+REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated;
 COMMIT;
 
 -- Deben aparecer las seis tablas con seguridad activada.

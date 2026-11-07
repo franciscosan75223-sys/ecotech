@@ -1,10 +1,37 @@
+# Entorno virtual y archivos de Python
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Variables de entorno y credenciales
 .env
 .env.*
 !.env.example
+
+# Claves privadas
 *.key
-.DS_Store
-# Los informes contienen los datos exportados y se conservan solo en el equipo.
+*.pem
+*.p12
+*.pfx
+
+# Archivos temporales y registros
+*.log
+*.tmp
+*.bak
+
+# Bases de datos y respaldos locales
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+backup/
+backups/
+
+# Informes generados
 /reportes/
+
+# Configuración local del editor
+.idea/
+.vscode/
+.DS_Store

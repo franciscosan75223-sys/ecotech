@@ -622,34 +622,83 @@ def eliminar_cuenta(conexion, id_cuenta):
 
 
 def comprobar_acceso(conexion, nombre, contrasena, servicio):
-    cursor = conexion.cursor()
+    cursor = conexion.cursor(row_factory=dict_row)
 
     try:
         cursor.execute("""
-            SELECT nombre_usuario,
-                   correo,
-                   contrasena_cifrada
-            FROM cuenta_usuario
-            WHERE nombre_usuario = %s
+            SELECT c.nombre_usuario,
+                   c.correo,
+                   c.contrasena_cifrada,
+                   e.id_empleado,
+                   e.rol
+            FROM cuenta_usuario c
+            INNER JOIN empleado e
+                ON e.id_empleado = c.id_empleado
+            WHERE c.nombre_usuario = %s
         """, (nombre,))
 
         fila = cursor.fetchone()
 
         if fila is None:
-            return False
+            return None
 
         cuenta = CuentaUsuario(
-            fila[0],
-            fila[1],
+            fila["nombre_usuario"],
+            fila["correo"],
             servicio
         )
 
-        cuenta.cargar_contrasena_cifrada(fila[2])
-
-        return cuenta.acceso_cuenta(
-            nombre,
-            contrasena
+        cuenta.cargar_contrasena_cifrada(
+            fila["contrasena_cifrada"]
         )
+
+        if not cuenta.acceso_cuenta(nombre, contrasena):
+            return None
+
+        return {
+            "id_empleado": fila["id_empleado"],
+            "nombre_usuario": fila["nombre_usuario"],
+            "rol": fila["rol"]
+        }
+
+    finally:
+        cursor.close()
+
+def consultar_datos_empleado(conexion, id_empleado):
+    cursor = conexion.cursor(row_factory=dict_row)
+
+    try:
+        cursor.execute("""
+            SELECT id_empleado, nombre, direccion, telefono,
+                   correo, fecha_inicio, salario, rol
+            FROM empleado
+            WHERE id_empleado = %s
+        """, (validar_id(id_empleado),))
+
+        return cursor.fetchone()
+
+    finally:
+        cursor.close()
+
+
+def consultar_horas_empleado(conexion, id_empleado):
+    cursor = conexion.cursor(row_factory=dict_row)
+
+    try:
+        cursor.execute("""
+            SELECT a.id_asignacion,
+                   a.fecha,
+                   a.horas_trabajadas,
+                   a.tareas_realizadas,
+                   p.nombre AS nombre_proyecto
+            FROM asignacion a
+            LEFT JOIN proyecto p
+                ON p.id_proyecto = a.id_proyecto
+            WHERE a.id_empleado = %s
+            ORDER BY a.fecha DESC
+        """, (validar_id(id_empleado),))
+
+        return cursor.fetchall()
 
     finally:
         cursor.close()
