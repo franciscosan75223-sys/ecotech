@@ -30,6 +30,8 @@ backups/
 
 # Informes generados
 /reportes/
+auditoria/
+*.json
 
 # Configuración local del editor
 .idea/
